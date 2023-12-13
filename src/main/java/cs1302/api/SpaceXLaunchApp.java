@@ -13,6 +13,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.HBox;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.geometry.Pos;
 import cs1302.api.Components.TopBar;
 import cs1302.api.Components.LaunchSiteInfoPanel;
 import cs1302.api.Components.WeatherInfoPanel;
@@ -20,6 +21,7 @@ import cs1302.api.SpaceXResponse;
 import cs1302.api.LaunchpadResponse;
 import cs1302.api.LocationResponse;
 import cs1302.api.WeatherResponse;
+import javafx.scene.layout.Region;
 import java.io.IOException;
 import java.util.List;
 import java.util.Arrays;
@@ -74,6 +76,7 @@ public class SpaceXLaunchApp extends Application {
     WeatherResponse weatherInfo;
     HBox infoPanels;
     boolean firstSearch;
+    VBox bannerVbox;
 
     /**
      * Constructs an {@code ApiApp} object. This default (i.e., no argument)
@@ -90,11 +93,26 @@ public class SpaceXLaunchApp extends Application {
         this.launchSiteInfoPanel = new LaunchSiteInfoPanel();
         this.weatherInfoPanel = new WeatherInfoPanel();
         this.firstSearch = true;
-        //this.content = new HBox(
+
+        // init the banner image
         Image bannerImage = new Image("file:resources/download.png");
-        this.banner = new ImageView(bannerImage);
-        this.banner.setPreserveRatio(true);
-        this.banner.setFitWidth(640);
+        banner = new ImageView(bannerImage);
+        banner.setPreserveRatio(false);
+
+        // Create the bannerHbox to hold the banner in the center
+        bannerVbox = new VBox(banner);
+        bannerVbox.setVgrow(banner, Priority.ALWAYS);
+        bannerVbox.setAlignment(Pos.CENTER);
+        bannerVbox.setMinHeight(600);
+        banner.setFitWidth(830);
+        banner.setFitHeight(685);
+
+        // Create the main content VBox
+        mainContent = new VBox(topBar, bannerVbox);
+
+
+        // Allow mainContent to grow horizontally within the root
+        HBox.setHgrow(mainContent, Priority.ALWAYS);
 
     } // SpaceXLauncApp
 
@@ -105,10 +123,18 @@ public class SpaceXLaunchApp extends Application {
         System.out.println("init() called");
 
         //Add components to mainContent
-        this.mainContent = new VBox(topBar, banner);
+        this.mainContent = new VBox(topBar, bannerVbox);
         VBox.setVgrow(launchSiteInfoPanel, Priority.ALWAYS);
+        mainContent.setMaxWidth(Double.MAX_VALUE);
+        // Allow mainContent to grow horizontally within the root
+        HBox.setHgrow(mainContent, Priority.ALWAYS);
+
+        // Set the minimum width for the TopBar based on its children's combined width
+        topBar.setMinWidth(Region.USE_PREF_SIZE);
+
         //Add mainContent to root
         this.root = new HBox(this.mainContent);
+        root.setHgrow(mainContent, Priority.ALWAYS);
 
         //Init button handlers
         this.topBar.getSearchButton().setOnAction(event -> handleSearch());
@@ -123,7 +149,7 @@ public class SpaceXLaunchApp extends Application {
     public void start(Stage stage) {
 
         this.stage = stage;
-        this.scene = new Scene(this.root);
+        this.scene = new Scene(this.root, 825, 725);
         this.stage.setOnCloseRequest(event -> Platform.exit());
         this.stage.setTitle("SpaceXLaunchApp!");
         this.stage.setScene(this.scene);
@@ -212,7 +238,7 @@ public class SpaceXLaunchApp extends Application {
 
                         //replace banner with mainContent (add info panel)
                         infoPanels.getChildren().addAll(launchSiteInfoPanel, weatherInfoPanel);
-                        mainContent.getChildren().remove(banner);
+                        mainContent.getChildren().remove(bannerVbox);
                         mainContent.getChildren().addAll(infoPanels);
 
                         //update boolean
@@ -254,6 +280,14 @@ public class SpaceXLaunchApp extends Application {
         //variables for later
         String locationsUri = "http://dataservice.accuweather.com/locations/v1/cities/autocomplete";
         String launchpadLocality = launchpadInfo.getLocality();
+
+        //Special fix for Vandenberg and Boca Chica to match locations api format
+        if (launchpadLocality.equals("Vandenberg Space Force Base")) {
+            launchpadLocality = "Vandenberg";
+        } else if (launchpadLocality.equals("Boca Chica Village")) {
+            launchpadLocality = "Brownsville";
+        } //if elseif
+
         String launchpadRegion = launchpadInfo.getRegion();
         String key = "nE4t7HuR6KI1hwaABe6UKvn7Xul8I6iG";
         String requestUri = buildLocationRequestUri(locationsUri, key, launchpadLocality);
@@ -283,19 +317,19 @@ public class SpaceXLaunchApp extends Application {
                     weatherInfoPanel.setLocationLabel(launchpadLocality, launchpadRegion);
                     weatherInfoPanel.updateUI(weatherInfo);
                 } else {
-                    // Display an alert for empty weather response
+                    // display an alert for empty weather response
                     displayAlert("No weather information available for this location.");
-                }
+                } //if-else
             } else {
-                // Display an alert for empty location response
-                displayAlert("Bad Response from Location API: No available location for search.");
-            }
+                // display an alert for empty location response
+                displayAlert("Bad Response from Location API: No available data for location.");
+            } //if-else
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
-            // Display an alert for other errors
+            // display alert for anything else
             displayAlert("An error occurred while pulling weather information.");
-        }
-    }
+        } //trt-catch
+    } //handleGetWeather
 
     /**
      * Displays a default information alert with the given content text.

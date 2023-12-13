@@ -6,6 +6,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,6 +32,10 @@ public class TopBar extends HBox {
         comboBox = new ComboBox<String>();
         weatherButton = new Button("Get Weather");
         weatherButton.setDisable(true);
+
+        //let items grow based on content
+
+
         //create map for name-padID for combobox
         launchpadMap = new HashMap<String, String>() {{
                 put("Kennedy Space Center Historic Site", "5e9e4502f509094188566f88");

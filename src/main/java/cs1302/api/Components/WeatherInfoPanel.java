@@ -11,7 +11,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
-
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import cs1302.api.WeatherResponse;
 
 /**
@@ -91,14 +92,24 @@ public class WeatherInfoPanel extends VBox {
      * @param iconValue - weather icon value
      */
     public void updateIcon(int iconValue) {
-        // Construct the file path for the corresponding image
-        String imagePath = "file:resources/" + iconValue + ".png";
+        //make file path
+        String imagePath = "resources/" + iconValue + ".png"; // Remove "file:"
 
-        // Create a new Image object with the updated image file
-        Image newIcon = new Image(imagePath);
+        // check if the file exists
+        if (Files.exists(Paths.get(imagePath))) {
+            //create new image with updated filepath
+            Image newIcon = new Image("file:" + imagePath);
 
-        // Update the weatherIcon ImageView
-        weatherIcon.setImage(newIcon);
+            //update the weatherIcon ImageView
+            weatherIcon.setImage(newIcon);
+        } else {
+            //if file does not exist show placeholder
+            Image placeholderIcon = new Image("file:resources/placeholder.png");
+            weatherIcon.setImage(placeholderIcon);
+
+        } //if-else
+    } //updateIcon
+
     } //updateIcon
 
     /**
