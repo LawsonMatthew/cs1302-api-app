@@ -106,9 +106,7 @@ public class WeatherInfoPanel extends VBox {
             //if file does not exist show placeholder
             Image placeholderIcon = new Image("file:resources/placeholder.png");
             weatherIcon.setImage(placeholderIcon);
-
         } //if-else
-    } //updateIcon
 
     } //updateIcon
 
