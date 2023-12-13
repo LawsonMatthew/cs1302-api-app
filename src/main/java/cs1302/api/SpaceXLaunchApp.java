@@ -1,11 +1,15 @@
 package cs1302.api;
 
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.HBox;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -31,16 +35,16 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /**
- * SpaceXLaunchApp that queries the SpaceX api for launch data for the next three launches.
- * App prompts use to press the "Search" button to query SpaceX api, launch information
- * is displayed for next available launch. The SpaceX api is queried again with the
- * launchpad ID to get the location for the actual launchpad which is fed to the weather api.
+ * Class representing SpaceXLaunchApp object. The app prompts users to select a launchpad
+ * from a dropdown, and select the "Search" button to query SpaceX api.
+ * The SpaceX api is queried with the launchpad ID to get the location and region
+ * for the actual launchpad which is fed to the weather api.
  * The user then presses the "Weather" button which sends a
  * query to the AccuWeather Locations autocomplete search api to pull a city/city id for the
- * launchpad. Then it queries the AccuWeatherForecast api to pull current weather for the launch pad
- * location provided by SpaceX api.
- * This project includes 4 seperate api queries across two different apis, three of which involve
- * using prior query information to generate.
+ * launchpad. Then it queries the Current Weather AccuWeather api to pull current weather
+ * for the launch pad location provided by SpaceX api.
+ * This project includes 3 seperate api queries across two different apis,
+ * all three of which involve using either prior query information or user information to generate.
  */
 public class SpaceXLaunchApp extends Application {
 
@@ -69,7 +73,7 @@ public class SpaceXLaunchApp extends Application {
     LocationResponse locationInfo;
     WeatherResponse weatherInfo;
     HBox infoPanels;
-
+    boolean firstSearch;
 
     /**
      * Constructs an {@code ApiApp} object. This default (i.e., no argument)
@@ -85,6 +89,7 @@ public class SpaceXLaunchApp extends Application {
         this.infoPanels = new HBox();
         this.launchSiteInfoPanel = new LaunchSiteInfoPanel();
         this.weatherInfoPanel = new WeatherInfoPanel();
+        this.firstSearch = true;
         //this.content = new HBox(
         Image bannerImage = new Image("file:resources/download.png");
         this.banner = new ImageView(bannerImage);
@@ -173,35 +178,56 @@ public class SpaceXLaunchApp extends Application {
      * and updates the UI.
      */
     public void handleSearch() {
-        String nextLaunchUri = "https://api.spacexdata.com/v4/launches/next";
-        try {
-            // Get next launch info
-            String response = sendRequest(nextLaunchUri);
-            SpaceXResponse spaceXResponse = parseResponse(response, SpaceXResponse.class);
-            this.spaceXResponse = spaceXResponse;
-            String launchpadId = spaceXResponse.getLaunchpad();
+        //changed below to implement combobox user choice. Leaving for potential later use.
+        //String nextLaunchUri = "https://api.spacexdata.com/v4/launches/next";
+        Thread searchThread = new Thread (() -> {
+            try {
+                // Get next launch info - ommitted in favor of comboBox leaving for
+                // if I want to revist after project submission
+                //String response = sendRequest(nextLaunchUri);
+                //SpaceXResponse spaceXResponse = parseResponse(response, SpaceXResponse.class);
+                //this.spaceXResponse = spaceXResponse;
 
-            // Now Get launchpad info
-            String launchpadUri = "https://api.spacexdata.com/v4/launchpads/" + launchpadId;
-            String launchpadResponse = sendRequest(launchpadUri);
-            LaunchpadResponse launchpadInfo = parseResponse(launchpadResponse,
-                LaunchpadResponse.class);
-            this.launchpadInfo = launchpadInfo;
-            launchpadInfo.processImages();
+                //pull chosen combobox ID
+                String launchpadId = topBar.getComboBoxId();
 
-            // Update UI with both launch and launchpad info
-            topBar.getWeatherButton().setDisable(false);
-            topBar.getSearchButton().setDisable(true);
-            //updateUI(spaceXResponse, launchpadInfo);
-            launchSiteInfoPanel.updateUI(launchpadInfo);
-            //replace banner with mainContent (add info panel)
-            infoPanels.getChildren().addAll(launchSiteInfoPanel, weatherInfoPanel);
-            mainContent.getChildren().remove(banner);
-            mainContent.getChildren().addAll(infoPanels);
+                // Now Get launchpad info
+                String launchpadUri = "https://api.spacexdata.com/v4/launchpads/" + launchpadId;
+                String launchpadResponse = sendRequest(launchpadUri);
+                LaunchpadResponse launchpadInfo = parseResponse(launchpadResponse,
+                    LaunchpadResponse.class);
+                this.launchpadInfo = launchpadInfo;
+                launchpadInfo.processImages();
 
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        } //try-catch
+                Platform.runLater(() -> {
+                    // Update UI with both launch and launchpad info
+                    topBar.getWeatherButton().setDisable(false);
+                    topBar.setInstructionsText("Press Get Weather" +
+                        " to retrieve live weather data.");
+                    //updateUI(spaceXResponse, launchpadInfo);
+                    launchSiteInfoPanel.updateUI(launchpadInfo);
+
+                    //add eelements if first time search is pressed
+                    if (this.firstSearch) {
+
+                        //replace banner with mainContent (add info panel)
+                        infoPanels.getChildren().addAll(launchSiteInfoPanel, weatherInfoPanel);
+                        mainContent.getChildren().remove(banner);
+                        mainContent.getChildren().addAll(infoPanels);
+
+                        //update boolean
+                        this.firstSearch = false;
+                    } //if
+                }); //runLater()
+
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            } //try-catch
+
+        }); //searchThread
+
+        searchThread.setDaemon(true);
+        searchThread.start();
     } //handleSearch
 
     /**
@@ -225,47 +251,63 @@ public class SpaceXLaunchApp extends Application {
      * Lastly updates UI elements to display weather data.
      */
     public void handleGetWeather() {
+        //variables for later
         String locationsUri = "http://dataservice.accuweather.com/locations/v1/cities/autocomplete";
         String launchpadLocality = launchpadInfo.getLocality();
+        String launchpadRegion = launchpadInfo.getRegion();
         String key = "nE4t7HuR6KI1hwaABe6UKvn7Xul8I6iG";
         String requestUri = buildLocationRequestUri(locationsUri, key, launchpadLocality);
 
-        String CurrentWeatherUri = "http://dataservice.accuweather.com/currentconditions/v1/";
+        //base api endpoint
+        String currentWeatherUri = "http://dataservice.accuweather.com/currentconditions/v1/";
+
         try {
             String locationResponse = sendRequest(requestUri);
-            // Parse the response into an array of LocationResponse objects
+            // parse the response into an array of LocationResponse objects
             LocationResponse[] locationResponsesArray = new Gson().fromJson(locationResponse,
-            LocationResponse[].class);
-            // Convert the array to a list
-            List<LocationResponse> locationResponses = Arrays.asList(locationResponsesArray);
-            //check if objects in array
+                LocationResponse[].class);
+
             if (locationResponsesArray.length > 0) {
                 this.locationInfo = locationResponsesArray[0];
-            } //if
-
-            //make and send current weather request
-            String currentWeatherUri = "http://dataservice.accuweather.com/currentconditions/v1/";
-            String locationKey = locationInfo.getKey();
-            String weatherRequestUri = currentWeatherUri + locationKey + "?apikey=" + key +
-                "&details=true";
-            String weatherApiResponse = sendRequest(weatherRequestUri);
-            //parse resposne into array like above due to format
-            WeatherResponse[] weatherResponsesArray = new Gson().fromJson(weatherApiResponse,
-            WeatherResponse[].class);
-            //convert to list again
-            List<WeatherResponse> weatherResponse = Arrays.asList(weatherResponsesArray);
-            //get class object
-            if (weatherResponsesArray.length > 0) {
-                this.weatherInfo = weatherResponsesArray[0];
-            } //if
-
-            //update ui
-            weatherInfoPanel.updateUI(weatherInfo);
-
+                // Continue with the weather request
+                String locationKey = locationInfo.getKey();
+                String weatherRequestUri = currentWeatherUri + locationKey + "?apikey=" + key +
+                    "&details=true";
+                String weatherApiResponse = sendRequest(weatherRequestUri);
+                WeatherResponse[] weatherResponsesArray = new Gson().fromJson(weatherApiResponse,
+                WeatherResponse[].class);
+                //check respose is not 0
+                if (weatherResponsesArray.length > 0) {
+                    this.weatherInfo = weatherResponsesArray[0];
+                    // Update UI
+                    weatherInfoPanel.setLocationLabel(launchpadLocality, launchpadRegion);
+                    weatherInfoPanel.updateUI(weatherInfo);
+                } else {
+                    // Display an alert for empty weather response
+                    displayAlert("No weather information available for this location.");
+                }
+            } else {
+                // Display an alert for empty location response
+                displayAlert("Bad Response from Location API: No available location for search.");
+            }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
-        } //try-catch
+            // Display an alert for other errors
+            displayAlert("An error occurred while pulling weather information.");
+        }
+    }
 
-    } //handleGetWeather
+    /**
+     * Displays a default information alert with the given content text.
+     *
+     * @param content The content text of the alert.
+     */
+    public void displayAlert(String content) {
+        Alert alert = new Alert(AlertType.INFORMATION);
+        alert.setTitle("Information");
+        alert.setHeaderText(null); // You can set a header text if needed
+        alert.setContentText(content);
+        alert.showAndWait();
+    } //displayAlert
 
 } // SpaceXLaunchApp

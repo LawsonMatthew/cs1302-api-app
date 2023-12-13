@@ -19,7 +19,7 @@ import cs1302.api.WeatherResponse;
  */
 public class WeatherInfoPanel extends VBox {
 
-    private Label localObservationDateTimeLabel;
+    private Label localObservationDateTime;
     private Label weatherTextLabel;
     private Label temperatureLabel;
     private Label realFeelTemperatureLabel;
@@ -31,6 +31,9 @@ public class WeatherInfoPanel extends VBox {
     private Label titleLabel;
     private Region spacer1;
     private Region spacer2;
+    private Image defaultWeatherIcon;
+    private Label location;
+    String precipType;
 
     /**
      * Constructor for WeatherInfoPanel class object.
@@ -50,16 +53,18 @@ public class WeatherInfoPanel extends VBox {
         this.setAlignment(Pos.TOP_CENTER);
 
         // make component title
-        titleLabel = new Label("Weather Information");
+        titleLabel = new Label("Live Weather Information");
 
         // init ImageView for the weather icon (you can add this later)
-        weatherIcon = new ImageView();
+        defaultWeatherIcon = new Image("file:resources/0.png");
+        weatherIcon = new ImageView(defaultWeatherIcon);
         weatherIcon.setFitHeight(200); // Set preferred height
         weatherIcon.setFitWidth(300); // Set preferred width
         weatherIcon.setPreserveRatio(true);
 
         // Initialize labels for WeatherResponse elements
-        localObservationDateTimeLabel = new Label("Local Observation Date Time: ");
+        location = new Label("Location: ");
+        localObservationDateTime = new Label("Local Observation Date Time: ");
         weatherTextLabel = new Label("Weather: ");
         temperatureLabel = new Label("Temperature: ");
         realFeelTemperatureLabel = new Label("Real Feel Temperature: ");
@@ -75,10 +80,38 @@ public class WeatherInfoPanel extends VBox {
         spacer2.setPrefHeight(20);
 
         // Add individual components to VBox
-        this.getChildren().addAll(titleLabel, weatherIcon, spacer1,
-            weatherTextLabel, temperatureLabel, realFeelTemperatureLabel, precipitationTypeLabel,
-            relativeHumidityLabel, uvIndexLabel, uvIndexTextLabel, spacer2);
+        this.getChildren().addAll(titleLabel, weatherIcon, spacer1, location,
+            localObservationDateTime, weatherTextLabel, temperatureLabel, realFeelTemperatureLabel,
+            precipitationTypeLabel, relativeHumidityLabel, uvIndexLabel, uvIndexTextLabel, spacer2);
     } // setupUI
+
+    /**
+     * Method to update the weathericon image based on api's passed icon value.
+     *
+     * @param iconValue - weather icon value
+     */
+    public void updateIcon(int iconValue) {
+        // Construct the file path for the corresponding image
+        String imagePath = "file:resources/" + iconValue + ".png";
+
+        // Create a new Image object with the updated image file
+        Image newIcon = new Image(imagePath);
+
+        // Update the weatherIcon ImageView
+        weatherIcon.setImage(newIcon);
+    } //updateIcon
+
+    /**
+     * Getter/ for location Label. Used in GetWeather handler to pull location
+     * name from spacex launchpad response, only ID is available from
+     * accuweather api for query.
+     *
+     * @param location - representing locality
+     * @param region
+     */
+    public void setLocationLabel(String location, String region) {
+        this.location.setText("Location: " + location + " , " + region);
+    } //setLocationLabel
 
     /**
      * Updates the UI elements with data from the given WeatherResponse.
@@ -87,7 +120,8 @@ public class WeatherInfoPanel extends VBox {
      */
     public void updateUI(WeatherResponse weatherResponse) {
         // Update elements with values from WeatherResponse
-        localObservationDateTimeLabel.setText("Local Observation Date Time: " +
+        updateIcon(weatherResponse.getWeatherIcon());
+        localObservationDateTime.setText("Local Observation Date Time: " +
             weatherResponse.getLocalObservationDateTime());
         weatherTextLabel.setText("Weather Text: " + weatherResponse.getWeatherText());
         temperatureLabel.setText("Temperature: " +
@@ -95,8 +129,15 @@ public class WeatherInfoPanel extends VBox {
         realFeelTemperatureLabel.setText("Real Feel Temperature: " +
             weatherResponse.getRealFeelTemperature().getImperial().getValue() +
             " " + weatherResponse.getRealFeelTemperature().getImperial().getUnit());
-        precipitationTypeLabel.setText("Precipitation Type: " +
-            weatherResponse.getPrecipitationType());
+
+        //special handler for precip type
+        if (weatherResponse.getPrecipitationType() == null) {
+            precipType = "None";
+        } else {
+            precipType = weatherResponse.getPrecipitationType();
+        } //if -else
+        precipitationTypeLabel.setText("Precipitation Type: " + precipType);
+
         relativeHumidityLabel.setText("Relative Humidity: "
             + weatherResponse.getRelativeHumidity() + "%");
         uvIndexLabel.setText("UV Index: " + weatherResponse.getUvIndex());

@@ -13,7 +13,7 @@ public class ApiDriver {
      */
     public static void main(String[] args) {
         try {
-            Application.launch(ApiApp.class, args);
+            Application.launch(SpaceXLaunchApp.class, args);
         } catch (UnsupportedOperationException e) {
             e.printStackTrace();
             System.err.println();
